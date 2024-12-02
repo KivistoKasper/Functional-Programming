@@ -24,16 +24,21 @@ readInt s =
         [(n, "")] -> Right n
         _         -> Left "String Int error"
 -- Convert String to Day
-stringToDate :: String -> String -> String -> Maybe Day
-stringToDate year month day = do
-    let y = read year :: Integer
-    let m = read month :: Int
-    let d = read day :: Int
-    fromGregorianValid y m d
+stringToDate :: String -> Maybe Day
+stringToDate dateString = do
+    let args = words (map (\c -> if c == '-' then ' ' else c) dateString) -- Replace '-' with spaces
+    case args of 
+        [year, month, day] -> do
+            let y = read year :: Integer
+            let m = read month :: Int
+            let d = read day :: Int
+            fromGregorianValid y m d -- Validate and return a valid date
+        _ -> Nothing -- Return Nothing for an invalid format
 
-processEvent :: String -> String -> String -> String -> String -> EventCalendar -> IO EventCalendar
-processEvent eventName placeName year month day calendar = do
-    case stringToDate year month day of
+
+processEvent :: String -> String -> String -> EventCalendar -> IO EventCalendar
+processEvent eventName placeName dateString calendar = do
+    case stringToDate dateString of
         Just date -> do
             putStrLn "OK"
             -- Create an Event and insert it into the calendar
@@ -44,9 +49,9 @@ processEvent eventName placeName year month day calendar = do
             putStrLn "NOT OK"
             return calendar
 
-processNear :: String -> String -> String -> EventCalendar -> IO String
-processNear year month day calendar = 
-    case stringToDate year month day of
+processNear :: String -> EventCalendar -> IO String
+processNear dateString calendar = 
+    case stringToDate dateString of
         Just date -> 
             case Map.lookup date calendar of
                 Just lst -> do
@@ -75,15 +80,15 @@ eventLoop state =
                     (_:afterBracket) = afterEvent  -- Skip the closing "]"
                     ("happens":"at":"[":placeRest) = afterBracket
                     (placeWords, afterPlace) = span (/= "]") placeRest
-                    (_:"on":year:month:day:_) = afterPlace
+                    (_:"on":dateString:[]) = afterPlace
                     event = unwords eventWords
                     place = unwords placeWords
-                --putStrLn $ show event ++ " " ++ show place
-                result <- processEvent event place year month day state
+                putStrLn $ event ++ " " ++ place ++ " " ++ dateString
+                result <- processEvent event place dateString state
                 eventLoop result
                 --eventLoop state
-            ["What", "happens", "near", year, month, day] -> do 
-                result <- processNear year month day state
+            ["What", "happens", "near", dateString] -> do 
+                result <- processNear dateString state
                 eventLoop state
             {-
             ["What", "happens", "near", date] -> do 
@@ -108,5 +113,5 @@ main = do
     putStrLn finalState
 
 -- For testing 
--- Event [ Event A ] happens at [ Place A1 ] on 2001 02 02
--- What happens near 2001 02 02
+-- Event [ Event A ] happens at [ Place A1 ] on 2001-02-02
+-- What happens near 2001-02-02
