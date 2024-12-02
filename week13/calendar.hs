@@ -46,7 +46,7 @@ processEvent eventName placeName dateString calendar = do
             let updatedCalendar = Map.insertWith (++) date [event] calendar
             return updatedCalendar
         Nothing   -> do
-            putStrLn "NOT OK"
+            putStrLn "Bad date"
             return calendar
 
 processNear :: String -> EventCalendar -> IO String
@@ -61,9 +61,22 @@ processNear dateString calendar =
                     putStrLn "Not found"
                     return "NOT OK"
         Nothing -> do
-            putStrLn "Invalid date"
+            putStrLn "Bad date"
             return "NOT OK"
 
+processTell :: String -> EventCalendar -> IO String
+processTell eventName calendar = do
+    let matchingDays = Map.toList $ Map.filter (any (\event -> name event == eventName)) calendar
+    --putStrLn $ "found: " ++ show matchingDays
+    case matchingDays of
+        ((day, events):_) -> do
+            -- Find the first matching event
+            let event = head events  -- Assuming at least one event is found
+            putStrLn $ "Event [ " ++ name event ++ " ] happens at [ " ++ place event ++ " ] on " ++ show day
+            return "found"
+        [] -> do
+            putStrLn "I do not know of such event"
+            return "not found"
 
 eventLoop :: EventCalendar -> IO String
 eventLoop state = 
@@ -83,18 +96,19 @@ eventLoop state =
                     (_:"on":dateString:[]) = afterPlace
                     event = unwords eventWords
                     place = unwords placeWords
-                putStrLn $ event ++ " " ++ place ++ " " ++ dateString
+                --putStrLn $ event ++ " " ++ place ++ " " ++ dateString
                 result <- processEvent event place dateString state
                 eventLoop result
                 --eventLoop state
             ["What", "happens", "near", dateString] -> do 
                 result <- processNear dateString state
                 eventLoop state
-            {-
-            ["What", "happens", "near", date] -> do 
-                result <- processWhat date
+            ("Tell": "me": "about": "[": rest) -> do
+                let (eventWords, afterEvent) = span (/= "]") rest
+                    event = unwords eventWords
+                --putStrLn $ event
+                processTell event state
                 eventLoop state
-            -}
             ("test":"[":event:"]": []) -> do
                 putStrLn $ "test event: " ++ event
                 eventLoop state
@@ -114,4 +128,9 @@ main = do
 
 -- For testing 
 -- Event [ Event A ] happens at [ Place A1 ] on 2001-02-02
+-- Event [ Event G21 ] happens at [ Place G ] on 2008-02-02
+-- Event [ Event G1 ] happens at [ Place G ] on 2008-02-02
 -- What happens near 2001-02-02
+-- What happens near 2008-02-02
+-- Tell me about [ Event A ]
+-- Tell me about [ Event B ]
