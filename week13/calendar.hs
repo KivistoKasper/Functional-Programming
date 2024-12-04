@@ -1,4 +1,4 @@
-import Data.Time.Calendar (Day, fromGregorianValid)
+import Data.Time.Calendar (Day, fromGregorianValid, fromGregorian)
 import Text.Read (readMaybe)
 import qualified Data.Map as Map
 {-
@@ -86,7 +86,7 @@ processTell eventName calendar = do
 eventLoop :: EventCalendar -> IO String
 eventLoop state = 
     do 
-        putStrLn $ "State at the moment: " ++ show state
+        --putStrLn $ "State at the moment: " ++ show state
         line <- getLine
         putStrLn $ "> " ++ line
         let args = words line
@@ -116,7 +116,6 @@ eventLoop state =
             ("Tell": "me": "about": "[": rest) -> do
                 let (eventWords, afterEvent) = span (/= "]") rest
                     event = unwords eventWords
-                --putStrLn $ event
                 result <- processTell event state
                 eventLoop state
 
@@ -130,11 +129,18 @@ eventLoop state =
                 putStrLn "I do not understand that"
                 eventLoop state
 
+-- Inital calendar for testing locally
+initCalendar :: EventCalendar
+initCalendar = Map.fromList
+    [ (fromGregorian 2001 02 02, [Event {name = "Event A", place = "Place A1"}])
+    , (fromGregorian 2001 02 06, [Event {name = "Event B", place = "Place B1"}])
+    , (fromGregorian 2001 02 10, [Event {name = "Event C", place = "Place C1"}])
+    ]
 
 main = do 
     putStrLn "Welcome to calendar application"
-    --finalState <- eventLoop phoneBook -- for own testing
-    finalState <- eventLoop Map.empty -- For grader
+    finalState <- eventLoop initCalendar    -- for own testing
+    --finalState <- eventLoop Map.empty     -- For grader
     putStrLn finalState
 
 -- For testing 
