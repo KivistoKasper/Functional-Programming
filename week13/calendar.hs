@@ -1,7 +1,8 @@
 import Data.Time.Calendar (Day, fromGregorianValid, fromGregorian, diffDays)
 import Text.Read (readMaybe)
 import qualified Data.Map as Map
-import Data.List (sort, sortBy)
+import Data.List (sort, sortBy, sortOn)
+import Data.Ord (comparing)
 {-
 data Name = Name String deriving (Eq)
 instance Show Name where 
@@ -15,6 +16,9 @@ data Event = Event {
     name :: String,
     place :: String
     } deriving (Eq, Show)
+instance Ord Event where
+    -- Compare events only by their name
+    compare event1 event2 = compare (name event1) (name event2)
 
 type EventCalendar = Map.Map Day [Event]
 
@@ -62,7 +66,7 @@ processNear dateString calendar =
                     putStrLn "Nothing that I know of"
                     return "No nearby events"
                 else do
-                    mapM_ printLine nearbyEvents
+                    mapM_ printLine  nearbyEvents
                     return $ "Events found"
                 where
                     printLine :: (Day, Event) -> IO ()
