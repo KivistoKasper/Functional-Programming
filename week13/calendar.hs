@@ -40,11 +40,16 @@ processEvent :: String -> String -> String -> EventCalendar -> IO EventCalendar
 processEvent eventName placeName dateString calendar = do
     case stringToDate dateString of
         Just date -> do
-            putStrLn "OK"
-            -- Create an Event and insert it into the calendar
-            let event = Event {name = eventName, place = placeName} -- Add a placeholder for place
-            let updatedCalendar = Map.insertWith (++) date [event] calendar
-            return updatedCalendar
+            let existingEvents = Map.findWithDefault [] date calendar
+            if any (any (\event -> name event == eventName)) (Map.elems calendar)
+                then do
+                    putStrLn "Event already exists"
+                    return calendar
+                else do
+                    putStrLn "OK"
+                    let event = Event {name = eventName, place = placeName}
+                    let updatedCalendar = Map.insertWith (++) date [event] calendar
+                    return updatedCalendar
         Nothing   -> do
             putStrLn "Bad date"
             return calendar
@@ -81,13 +86,14 @@ processTell eventName calendar = do
 eventLoop :: EventCalendar -> IO String
 eventLoop state = 
     do 
-        --putStrLn $ "State at the moment: " ++ show state
+        putStrLn $ "State at the moment: " ++ show state
         line <- getLine
         putStrLn $ "> " ++ line
         let args = words line
         --putStrLn $ "ARGS: " ++ show args
         case args of 
             ["quit"] ->  return "Bye"
+
             ("Event" : "[" : rest) -> do 
                 let (eventWords, afterEvent) = span (/= "]") rest
                     (_:afterBracket) = afterEvent  -- Skip the closing "]"
@@ -100,15 +106,20 @@ eventLoop state =
                 result <- processEvent event place dateString state
                 eventLoop result
                 --eventLoop state
-            ["What", "happens", "near", dateString] -> do 
+
+            ("What": "happens": "near": "[": rest) -> do 
+                let (dateWords, afterDate) = span (/= "]") rest
+                    dateString = unwords dateWords
                 result <- processNear dateString state
                 eventLoop state
+
             ("Tell": "me": "about": "[": rest) -> do
                 let (eventWords, afterEvent) = span (/= "]") rest
                     event = unwords eventWords
                 --putStrLn $ event
-                processTell event state
+                result <- processTell event state
                 eventLoop state
+
             ("test":"[":event:"]": []) -> do
                 putStrLn $ "test event: " ++ event
                 eventLoop state
