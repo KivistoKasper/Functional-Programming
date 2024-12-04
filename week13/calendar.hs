@@ -1,6 +1,7 @@
 import Data.Time.Calendar (Day, fromGregorianValid, fromGregorian, diffDays)
 import Text.Read (readMaybe)
 import qualified Data.Map as Map
+import Data.Traversable (traverse)
 {-
 data Name = Name String deriving (Eq)
 instance Show Name where 
@@ -13,10 +14,7 @@ instance Show Place where
 data Event = Event {
     name :: String,
     place :: String
-    } deriving (Eq)
-instance Show Event where
-    show Event {name=n, place=p} =
-        "Event [ " ++ n ++ " ] happens at [ " ++ p ++ " ] on "
+    } deriving (Eq, Show)
 
 type EventCalendar = Map.Map Day [Event]
 
@@ -88,6 +86,25 @@ processTell eventName calendar = do
             putStrLn "I do not know of such event"
             return "not found"
 
+processAt :: String -> EventCalendar -> IO String
+processAt placeName calendar = do
+    let filteredEvents = concatMap (\(date, events) -> 
+                                    filter (\event -> place event == placeName) events) 
+                                    (Map.toList calendar)
+    if null filteredEvents
+        then do
+            putStrLn "Nothing that I know of"
+            return "No events at place"
+        else do
+            mapM_ printLine filteredEvents
+            return $ "Events found"
+        where
+            printLine :: Event -> IO ()
+            printLine e = 
+                putStrLn $ "Event [ " ++ name e ++ " ] happens at [ " ++ place e ++ " ]"
+
+
+
 eventLoop :: EventCalendar -> IO String
 eventLoop state = 
     do 
@@ -121,6 +138,12 @@ eventLoop state =
             ["What", "happens", "near", dateString] -> do 
                 result <- processNear dateString state
                 eventLoop state
+            
+            ("What": "happens": "at": "[": rest) -> do
+                let (placeWords, afterPlace) = span (/= "]") rest
+                    place = unwords placeWords
+                result <- processAt place state
+                eventLoop state
 
             ("test":"[":event:"]": []) -> do
                 putStrLn $ "test event: " ++ event
@@ -137,7 +160,7 @@ initCalendar :: EventCalendar
 initCalendar = Map.fromList
     [ (fromGregorian 2001 02 06, [Event {name = "Event B", place = "Place A1"}])
     , (fromGregorian 2001 02 02, [Event {name = "Event A", place = "Place B1"},
-                                  Event {name = "Event D", place = "Place B1"}])
+                                  Event {name = "Event D", place = "Place A1"}])
     , (fromGregorian 2001 02 10, [Event {name = "Event C", place = "Place C1"}])
     ]
 
@@ -155,3 +178,4 @@ main = do
 -- What happens near 2001-02-05
 -- Tell me about [ Event A ]
 -- Tell me about [ Event B ]
+-- What happens at [ Place A1 ]
