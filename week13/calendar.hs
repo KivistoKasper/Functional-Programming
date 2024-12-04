@@ -1,4 +1,4 @@
-import Data.Time.Calendar (Day, fromGregorianValid, fromGregorian)
+import Data.Time.Calendar (Day, fromGregorianValid, fromGregorian, diffDays)
 import Text.Read (readMaybe)
 import qualified Data.Map as Map
 {-
@@ -13,16 +13,13 @@ instance Show Place where
 data Event = Event {
     name :: String,
     place :: String
-    } deriving (Eq, Show)
+    } deriving (Eq)
+instance Show Event where
+    show Event {name=n, place=p} =
+        "Event [ " ++ n ++ " ] happens at [ " ++ p ++ " ] on "
 
 type EventCalendar = Map.Map Day [Event]
 
--- Error handling for reading an integer
-readInt :: String -> Either String Int
-readInt s =
-    case reads s of
-        [(n, "")] -> Right n
-        _         -> Left "String Int error"
 -- Convert String to Day
 stringToDate :: String -> Maybe Day
 stringToDate dateString = do
@@ -57,14 +54,22 @@ processEvent eventName placeName dateString calendar = do
 processNear :: String -> EventCalendar -> IO String
 processNear dateString calendar = 
     case stringToDate dateString of
-        Just date -> 
-            case Map.lookup date calendar of
-                Just lst -> do
-                    putStrLn $ unlines (map show lst)
-                    return "OK"
-                Nothing -> do
-                    putStrLn "Not found"
-                    return "NOT OK"
+        Just date -> do
+            -- Get all dates and filter those within 7 days
+            let nearDates = Map.keys $ Map.filterWithKey (\d _ -> abs (diffDays d date) <= 7) calendar
+            -- Collect nearby events
+            let nearbyEvents = concatMap (\d -> map (\e -> (d, e)) (Map.findWithDefault [] d calendar)) nearDates
+            if null nearbyEvents
+                then do
+                    putStrLn "Nothing that I know of"
+                    return "No nearby events"
+                else do
+                    mapM_ printLine nearbyEvents
+                    return $ "Events found"
+                where
+                    printLine :: (Day, Event) -> IO ()
+                    printLine (d, event) = 
+                        putStrLn $ "Event [ " ++ name event ++ " ] happens on " ++ show d
         Nothing -> do
             putStrLn "Bad date"
             return "NOT OK"
@@ -107,16 +112,14 @@ eventLoop state =
                 eventLoop result
                 --eventLoop state
 
-            ("What": "happens": "near": "[": rest) -> do 
-                let (dateWords, afterDate) = span (/= "]") rest
-                    dateString = unwords dateWords
-                result <- processNear dateString state
-                eventLoop state
-
             ("Tell": "me": "about": "[": rest) -> do
                 let (eventWords, afterEvent) = span (/= "]") rest
                     event = unwords eventWords
                 result <- processTell event state
+                eventLoop state
+
+            ["What", "happens", "near", dateString] -> do 
+                result <- processNear dateString state
                 eventLoop state
 
             ("test":"[":event:"]": []) -> do
@@ -132,8 +135,9 @@ eventLoop state =
 -- Inital calendar for testing locally
 initCalendar :: EventCalendar
 initCalendar = Map.fromList
-    [ (fromGregorian 2001 02 02, [Event {name = "Event A", place = "Place A1"}])
-    , (fromGregorian 2001 02 06, [Event {name = "Event B", place = "Place B1"}])
+    [ (fromGregorian 2001 02 06, [Event {name = "Event B", place = "Place A1"}])
+    , (fromGregorian 2001 02 02, [Event {name = "Event A", place = "Place B1"},
+                                  Event {name = "Event D", place = "Place B1"}])
     , (fromGregorian 2001 02 10, [Event {name = "Event C", place = "Place C1"}])
     ]
 
@@ -148,6 +152,6 @@ main = do
 -- Event [ Event G21 ] happens at [ Place G ] on 2008-02-02
 -- Event [ Event G1 ] happens at [ Place G ] on 2008-02-02
 -- What happens near 2001-02-02
--- What happens near 2008-02-02
+-- What happens near 2001-02-05
 -- Tell me about [ Event A ]
 -- Tell me about [ Event B ]
