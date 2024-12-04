@@ -1,7 +1,7 @@
 import Data.Time.Calendar (Day, fromGregorianValid, fromGregorian, diffDays)
 import Text.Read (readMaybe)
 import qualified Data.Map as Map
-import Data.Traversable (traverse)
+import Data.List (sort, sortBy)
 {-
 data Name = Name String deriving (Eq)
 instance Show Name where 
@@ -54,7 +54,7 @@ processNear dateString calendar =
     case stringToDate dateString of
         Just date -> do
             -- Get all dates and filter those within 7 days
-            let nearDates = Map.keys $ Map.filterWithKey (\d _ -> abs (diffDays d date) <= 7) calendar
+            let nearDates = sort $ Map.keys $ Map.filterWithKey (\d _ -> abs (diffDays d date) <= 7) calendar
             -- Collect nearby events
             let nearbyEvents = concatMap (\d -> map (\e -> (d, e)) (Map.findWithDefault [] d calendar)) nearDates
             if null nearbyEvents
@@ -114,7 +114,7 @@ eventLoop state =
         let args = words line
         --putStrLn $ "ARGS: " ++ show args
         case args of 
-            ["quit"] ->  return "Bye"
+            ["Quit"] ->  return "Bye"
 
             ("Event" : "[" : rest) -> do 
                 let (eventWords, afterEvent) = span (/= "]") rest
@@ -158,14 +158,15 @@ eventLoop state =
 -- Inital calendar for testing locally
 initCalendar :: EventCalendar
 initCalendar = Map.fromList
-    [ (fromGregorian 2001 02 06, [Event {name = "Event B", place = "Place A1"}])
-    , (fromGregorian 2001 02 02, [Event {name = "Event A", place = "Place B1"},
-                                  Event {name = "Event D", place = "Place A1"}])
-    , (fromGregorian 2001 02 10, [Event {name = "Event C", place = "Place C1"}])
+    [ (fromGregorian 2001 02 02, [Event {name = "Event A", place = "Place A1"}])
+    , (fromGregorian 2008 02 02, [Event {name = "Event G21", place = "Place G"},
+                                  Event {name = "Event G1", place = "Place G"}])
+    , (fromGregorian 2008 02 03, [Event {name = "Event G22", place = "Place G"}])
+    , (fromGregorian 2011 02 02, [Event {name = "Event G5", place = "Place G"}])
     ]
 
 main = do 
-    putStrLn "Welcome to calendar application"
+    --putStrLn "Welcome to calendar application"
     finalState <- eventLoop initCalendar    -- for own testing
     --finalState <- eventLoop Map.empty     -- For grader
     putStrLn finalState
