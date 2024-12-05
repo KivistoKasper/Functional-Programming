@@ -57,21 +57,22 @@ processNear :: String -> EventCalendar -> IO String
 processNear dateString calendar = 
     case stringToDate dateString of
         Just date -> do
-            -- Get all dates and filter those within 7 days
-            let nearDates = sort $ Map.keys $ Map.filterWithKey (\d _ -> abs (diffDays d date) <= 7) calendar
             -- Collect nearby events
-            let nearbyEvents = concatMap (\d -> map (\e -> (d, e)) (Map.findWithDefault [] d calendar)) nearDates
+            let nearbyEvents = Map.toList $
+                               Map.map (map name) $
+                               Map.filterWithKey (\d _ -> abs (diffDays d date) <= 7) calendar
             if null nearbyEvents
                 then do
                     putStrLn "Nothing that I know of"
                     return "No nearby events"
                 else do
-                    mapM_ printLine  nearbyEvents
+                    let sortedEvents = map (\(d, e) -> (d, sort e)) nearbyEvents
+                    mapM_ printLine  sortedEvents
                     return $ "Events found"
                 where
-                    printLine :: (Day, Event) -> IO ()
-                    printLine (d, event) = 
-                        putStrLn $ "Event [ " ++ name event ++ " ] happens on " ++ show d
+                    printLine :: (Day, [String]) -> IO ()
+                    printLine (d, events) = 
+                        mapM_ (\e -> putStrLn $ "Event [ " ++ e ++ " ] happens on " ++ show d) events
         Nothing -> do
             putStrLn "Bad date"
             return "NOT OK"
@@ -180,7 +181,9 @@ main = do
 -- Event [ Event G21 ] happens at [ Place G ] on 2008-02-02
 -- Event [ Event G1 ] happens at [ Place G ] on 2008-02-02
 -- What happens near 2001-02-02
+-- What happens near 2008-02-05
 -- What happens near 2001-02-05
 -- Tell me about [ Event A ]
 -- Tell me about [ Event B ]
 -- What happens at [ Place A1 ]
+-- What happens at [ Place G ]
