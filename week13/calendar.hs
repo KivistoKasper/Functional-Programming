@@ -53,6 +53,20 @@ processEvent eventName placeName dateString calendar = do
             putStrLn "Bad date"
             return calendar
 
+processTell :: String -> EventCalendar -> IO String
+processTell eventName calendar = do
+    let matchingDays = Map.toList $ Map.filter (any (\event -> name event == eventName)) calendar
+    --putStrLn $ "found: " ++ show matchingDays
+    case matchingDays of
+        ((day, events):_) -> do
+            -- Find the first matching event
+            let event = head events  -- Assuming at least one event is found
+            putStrLn $ "Event [ " ++ name event ++ " ] happens at [ " ++ place event ++ " ] on " ++ show day
+            return "found"
+        [] -> do
+            putStrLn "I do not know of such event"
+            return "not found"
+
 processNear :: String -> EventCalendar -> IO String
 processNear dateString calendar = 
     case stringToDate dateString of
@@ -77,36 +91,24 @@ processNear dateString calendar =
             putStrLn "Bad date"
             return "NOT OK"
 
-processTell :: String -> EventCalendar -> IO String
-processTell eventName calendar = do
-    let matchingDays = Map.toList $ Map.filter (any (\event -> name event == eventName)) calendar
-    --putStrLn $ "found: " ++ show matchingDays
-    case matchingDays of
-        ((day, events):_) -> do
-            -- Find the first matching event
-            let event = head events  -- Assuming at least one event is found
-            putStrLn $ "Event [ " ++ name event ++ " ] happens at [ " ++ place event ++ " ] on " ++ show day
-            return "found"
-        [] -> do
-            putStrLn "I do not know of such event"
-            return "not found"
-
+-- What happens at [ Place G ]
 processAt :: String -> EventCalendar -> IO String
 processAt placeName calendar = do
-    let filteredEvents = concatMap (\(date, events) -> 
-                                    filter (\event -> place event == placeName) events) 
-                                    (Map.toList calendar)
+    let filteredEvents =  concatMap (\(_, events) -> map (\event -> (name event, place event)) events) $ 
+                          Map.toList $ 
+                          Map.map (filter (\event -> place event == placeName)) calendar                         
     if null filteredEvents
         then do
             putStrLn "Nothing that I know of"
             return "No events at place"
         else do
-            mapM_ printLine filteredEvents
+            let sortedEvents = sort filteredEvents 
+            mapM_ printLine sortedEvents
             return $ "Events found"
         where
-            printLine :: Event -> IO ()
-            printLine e = 
-                putStrLn $ "Event [ " ++ name e ++ " ] happens at [ " ++ place e ++ " ]"
+            printLine :: (String, String) -> IO ()
+            printLine (e, p) = 
+                putStrLn $ "Event [ " ++ e ++ " ] happens at [ " ++ p ++ " ]"
 
 
 
@@ -150,9 +152,6 @@ eventLoop state =
                 result <- processAt place state
                 eventLoop state
 
-            ("test":"[":event:"]": []) -> do
-                putStrLn $ "test event: " ++ event
-                eventLoop state
             [] -> do
                 putStrLn "I do not understand that"
                 eventLoop state
