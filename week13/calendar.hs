@@ -138,9 +138,16 @@ eventLoop state =
 
             ("Tell": "me": "about": "[": rest) -> do
                 let (eventWords, afterEvent) = span (/= "]") rest
-                    event = unwords eventWords
-                result <- processTell event state
-                eventLoop state
+                if null afterEvent || (length afterEvent /= 1 || head afterEvent /= "]")
+                    then do
+                        putStrLn "I do not understand that"
+                        eventLoop state
+                    else do
+                        let event = unwords eventWords
+                        result <- processTell event state
+                        eventLoop state
+
+                    
 
             ["What", "happens", "near", dateString] -> do 
                 result <- processNear dateString state
@@ -148,9 +155,14 @@ eventLoop state =
             
             ("What": "happens": "at": "[": rest) -> do
                 let (placeWords, afterPlace) = span (/= "]") rest
-                    place = unwords placeWords
-                result <- processAt place state
-                eventLoop state
+                if null afterPlace || (length afterPlace /= 1 || head afterPlace /= "]")
+                    then do
+                        putStrLn "I do not understand that"
+                        eventLoop state
+                    else do
+                        let place = unwords placeWords
+                        result <- processAt place state
+                        eventLoop state
 
             [] -> do
                 putStrLn "I do not understand that"
@@ -170,9 +182,8 @@ initCalendar = Map.fromList
     ]
 
 main = do 
-    --putStrLn "Welcome to calendar application"
-    finalState <- eventLoop initCalendar    -- for own testing
-    --finalState <- eventLoop Map.empty     -- For grader
+    --finalState <- eventLoop initCalendar    -- for own testing
+    finalState <- eventLoop Map.empty     -- For grader
     putStrLn finalState
 
 -- For testing 
